@@ -2,5 +2,4 @@ logs/
 data/
 figures+log/
 lab1/
-__pychache__/
-src/__pychache__/
+src/__pycache__/
