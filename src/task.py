@@ -27,6 +27,17 @@ class Task:
         self.models = model.Model(self.config)
         self.load_data = load_data.Load(self.config)
 
+        # make folder to save figures and logs
+        current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        self.dir_name = f"./{self.config.lab_name}/{current_time}"
+        if not os.path.exists(self.dir_name):
+            os.makedirs(self.dir_name)
+        log_file_path = f"./{self.dir_name}/log.txt"
+        self.file = open(log_file_path, 'a')
+
+    def __del__(self):
+        self.file.close()
+
 
     def train(self):
         """
@@ -50,22 +61,15 @@ class Task:
         Returns:
         dict: A dictionary containing the training history, trained model, testing data, and directory name.
         """
-        # make folder to save figures and logs
-        current_time = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        dir_name = f"./{self.config.lab_name}/{current_time}"
-        if not os.path.exists(dir_name):
-            os.makedirs(dir_name)
-        log_file_path = f"{dir_name}/log.txt"
-        logging.basicConfig(
-            filename=log_file_path,
-            level=logging.INFO,
-            format='%(asctime)s - %(levelname)s - %(message)s'
-        )
 
-        logging.info(f'python version: {sys.version}')
-        logging.info(f'tensorflow version: {tf.__version__}')
-        logging.info(f'devices: {tf.test.gpu_device_name()}')
-        logging.info(f'Model name: {self.config.model}')
+        # logging 
+        self.file.write(f'\n> date: {datetime.now()}')
+        self.file.write(f'\n> during lab: {self.config.lab_name}')
+        self.file.write(f'\n> python version: {sys.version}')
+        self.file.write(f'\n> tensorflow version: {tf.__version__}')
+        self.file.write(f'\n> devices: {tf.test.gpu_device_name()}')
+        self.file.write(f'\n> Model name: {self.config.model}')
+        self.file.write(f"\n> parameters:\ndate path: {self.config.dataset_path}\ninput shape: ({self.config.time_steps}, {len(self.config.input_signal_types)})\ninput signal types: {self.config.input_signal_types}\nlabels: {self.config.labels}\ntime steps: {self.config.time_steps}\nhidden units: {self.config.hidden}\nbatch size: {self.config.batch_size}\nepochs: {self.config.epochs}\nlearning rate: {self.config.learning_rate}\ndropout rate: {self.config.dropout_rate}\nl2 regularization: {self.config.lambda_l2}\nclipping threshold: {self.config.clipping_threshold}")
 
         # load data
         X_train_signals_paths = [self.config.dataset_path + 'train/' + 'Inertial Signals/' + signal + '_train.txt' for signal in self.config.input_signal_types]
@@ -84,7 +88,7 @@ class Task:
 
         model = self.models.build()
 
-        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=f'./{dir_name}/tensorboard')
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=f'./{self.dir_name}/tensorboard')
 
         # compile model
         if self.config.clipping_threshold > 0:
@@ -102,7 +106,7 @@ class Task:
         model.summary(print_fn=lambda x: buffer.write(x + '\n'))
         summary_string = buffer.getvalue()
         print(summary_string)
-        logging.info(summary_string)
+        self.file.write(f'\n\n> {summary_string}')
 
         # train and test model
         keras.callbacks.EarlyStopping(monitor='val_accuracy', patience=3, restore_best_weights=True)
@@ -114,9 +118,9 @@ class Task:
                 callbacks=[tensorboard_callback])
                 
         # save model
-        model.save(f'{dir_name}/model.h5')
+        model.save(f'{self.dir_name}/model.h5')
 
-        return {'history': history, 'model': model, 'X_test': X_test, 'y_test': y_test, 'dir_name': dir_name}
+        return {'history': history, 'model': model, 'X_test': X_test, 'y_test': y_test}
 
     def evaluate(self, traininfo):
         """
@@ -128,7 +132,7 @@ class Task:
                 - model (object): The trained model.
                 - X_test (ndarray): The test data.
                 - y_test (ndarray): The test labels.
-                - dir_name (str): The directory name.
+                - self.dir_name (str): The directory name.
 
         Returns:
             dict: A dictionary containing the evaluation results.
@@ -141,9 +145,9 @@ class Task:
                 - recall_score (float): The recall score.
                 - f1_score (float): The F1 score.
                 - confusion_mat (ndarray): The confusion matrix.
-                - dir_name (str): The directory name.
+                - self.dir_name (str): The directory name.
         """
-        history, model, X_test, y_test, dir_name = traininfo['history'], traininfo['model'], traininfo['X_test'], traininfo['y_test'], traininfo['dir_name']
+        history, model, X_test, y_test = traininfo['history'], traininfo['model'], traininfo['X_test'], traininfo['y_test']
         print(history.history)
         test_loss, test_acc = history.history['val_loss'][-1], history.history['val_accuracy'][-1]
         print("Test loss:", test_loss)
@@ -168,15 +172,14 @@ class Task:
         print(normalized_confusion_mat)
 
         ## make log
-        logging.info(f"parameters:\ndate path: {self.config.dataset_path}\ninput shape: ({self.config.time_steps}, {len(self.config.input_signal_types)})\ninput signal types: {self.config.input_signal_types}\nlabels: {self.config.labels}\ntime steps: {self.config.time_steps}\nhidden units: {self.config.hidden}\nbatch size: {self.config.batch_size}\nepochs: {self.config.epochs}\nlearning rate: {self.config.learning_rate}\ndropout rate: {self.config.dropout_rate}\nl2 regularization: {self.config.lambda_l2}\nclipping threshold: {self.config.clipping_threshold}")
-        logging.info(f"Test loss: {test_loss}, Test accuracy: {test_acc}")
-        logging.info("Precision: {}".format(precision_score))
-        logging.info("Recall: {}".format(recall_score))
-        logging.info("F1 Score: {}".format(f1_score))
-        logging.info(f"Confusion Matrix: \n{confusion_mat}")
-        logging.info(f"Normalized Confusion Matrix: \n{normalized_confusion_mat}")
+        self.file.write(f"\n> Test loss: {test_loss}, Test accuracy: {test_acc}")
+        self.file.write(f"\n> Precision: {precision_score}")
+        self.file.write(f"\n> Recall: {recall_score}")
+        self.file.write(f"\n> F1 Score: {f1_score}")
+        self.file.write(f"\n> Confusion Matrix: \n{confusion_mat}")
+        self.file.write(f"\n> Normalized Confusion Matrix: \n{normalized_confusion_mat}")
 
-        return {'normalized_confusion_mat': normalized_confusion_mat, 'history': history, 'y_pred': y_pred, 'test_loss': test_loss, 'test_acc': test_acc, 'precision_score': precision_score, 'recall_score': recall_score, 'f1_score': f1_score, 'confusion_mat': confusion_mat, 'dir_name': dir_name}
+        return {'normalized_confusion_mat': normalized_confusion_mat, 'history': history, 'y_pred': y_pred, 'test_loss': test_loss, 'test_acc': test_acc, 'precision_score': precision_score, 'recall_score': recall_score, 'f1_score': f1_score, 'confusion_mat': confusion_mat}
 
     def figure(self, traininfo, plot=True):
         """
@@ -186,12 +189,12 @@ class Task:
             traininfo (dict): A dictionary containing the training history, normalized confusion matrix, and directory name.
                 - history (History): The training history object returned by the `fit` method of a Keras model.
                 - normalized_confusion_mat (ndarray): The normalized confusion matrix.
-                - dir_name (str): The directory name where the plots should be saved.
+                - self.dir_name (str): The directory name where the plots should be saved.
         
         Returns:
             None
         """
-        history, normalized_confusion_mat, dir_name = traininfo['history'], traininfo['normalized_confusion_mat'], traininfo['dir_name']
+        history, normalized_confusion_mat = traininfo['history'], traininfo['normalized_confusion_mat']
         ## loss and accuracy 
         fig, ax = plt.subplots()
         plt.plot(history.history['loss'])
@@ -200,7 +203,7 @@ class Task:
         plt.ylabel('Loss')
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'], loc='upper right')
-        plt.savefig(f'{dir_name}/loss.png')
+        plt.savefig(f'{self.dir_name}/loss.png')
         if plot:
             plt.show()
 
@@ -211,7 +214,7 @@ class Task:
         plt.ylabel('Accuracy')
         plt.xlabel('Epoch')
         plt.legend(['Train', 'Validation'], loc='upper right')
-        plt.savefig(f'{dir_name}/accuracy.png')
+        plt.savefig(f'{self.dir_name}/accuracy.png')
         if plot:
             plt.show()
 
@@ -235,7 +238,7 @@ class Task:
         plt.ylabel('True label')
         plt.xlabel('Predicted label')
         plt.title('Confusion Matrix on Test Set')
-        plt.savefig(f'{dir_name}/confusion_matrix.png', dpi=300, bbox_inches='tight')
+        plt.savefig(f'{self.dir_name}/confusion_matrix.png', dpi=300, bbox_inches='tight')
         if plot:
             plt.show()
 
