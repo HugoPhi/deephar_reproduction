@@ -26,54 +26,53 @@ class Model:
         Returns:
             A tf.keras.models.Model object representing the generated model.
         """
-        match self.config.model:
-            case 'simple_lstm':
-                # print("dropout rate:", self.config.dropout_rate)
-                # print("labels:", len(self.config.labels))
-                # print("hidden units:", self.config.hidden)
-                # print("input shape:", (self.config.time_steps, len(self.config.input_signal_types)))
+        if self.config.model == 'simple_lstm':
+            # print("dropout rate:", self.config.dropout_rate)
+            # print("labels:", len(self.config.labels))
+            # print("hidden units:", self.config.hidden)
+            # print("input shape:", (self.config.time_steps, len(self.config.input_signal_types)))
 
-                input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
-                x = layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate)(input)
-                x = layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate)(x)
-                # layers.Dense(2*hidden, activation='relu'),
-                # layers.Dropout(dropout_rate),
-                output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
-                
-                return models.Model(inputs=input, outputs=output)
-            case 'bi_lstm': 
-                input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(input)
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate))(x)
-                # x = layers.Dense(2*hidden, activation='relu')(x)
-                # x = layers.Dropout(dropout_rate)(x)
+            input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
+            x = layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate)(input)
+            x = layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate)(x)
+            # layers.Dense(2*hidden, activation='relu'),
+            # layers.Dropout(dropout_rate),
+            output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
+            
+            return models.Model(inputs=input, outputs=output)
+        elif self.config.model == 'bi_lstm': 
+            input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(input)
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate))(x)
+            # x = layers.Dense(2*hidden, activation='relu')(x)
+            # x = layers.Dropout(dropout_rate)(x)
 
-                output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
-                return models.Model(inputs=input, outputs=output)
-            case 'res_bi_lstm':  
-                input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
+            output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
+            return models.Model(inputs=input, outputs=output)
+        elif self.config.model == 'res_bi_lstm':
+            input = layers.Input(shape=(self.config.time_steps, len(self.config.input_signal_types)))
 
-                x = layers.Activation('relu')(input)
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
-                x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
-                x = layers.BatchNormalization()(x)
+            x = layers.Activation('relu')(input)
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
+            x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
+            x = layers.BatchNormalization()(x)
 
-                x = layers.Activation('relu')(input)
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
-                x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
-                x = layers.BatchNormalization()(x)
+            x = layers.Activation('relu')(input)
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
+            x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
+            x = layers.BatchNormalization()(x)
 
-                x = layers.Activation('relu')(input)
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
-                x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
-                x = layers.BatchNormalization()(x)
+            x = layers.Activation('relu')(input)
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=True, dropout=self.config.dropout_rate))(x)
+            x = self.res_layer(x, self.config.hidden, num=2, bidir=True)
+            x = layers.BatchNormalization()(x)
 
-                x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate))(x)
-                output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
+            x = layers.Bidirectional(layers.LSTM(self.config.hidden, return_sequences=False, dropout=self.config.dropout_rate))(x)
+            output = layers.Dense(len(self.config.labels), activation='softmax', kernel_regularizer=tf.keras.regularizers.l2(self.config.lambda_l2))(x)
 
-                return models.Model(inputs=input, outputs=output)
-            case _:
-                print("Invalid model name.")
-                print("Available models: simple_lstm, bi_lstm, res_bi_har")
-                exit(1)
+            return models.Model(inputs=input, outputs=output)
+        else: 
+            print("Invalid model name.")
+            print("Available models: simple_lstm, bi_lstm, res_bi_har")
+            exit(1)
 
